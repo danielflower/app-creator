@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create an app</title>
+    <link rel="stylesheet" href="site.css">
+</head>
+<body>
+<h1>Enter App Details</h1>
+
+<p>This will create a git repo in your GitHub space, upload a sample app to it, and register it with AppRunner.</p>
+<div class="error" style="color:red; font-weight: bold; display:none">
+    Sorry, an error occurred. Check the console for details.
+</div>
+<form action="/app-creator/create" method="post">
+
+    <fieldset>
+        <legend>Application name</legend>
+        <label>
+            This will be used as your URL prefix and the name of your git repo<br>
+            <input type="text" name="appName" required pattern="[A-Za-z0-9-_]+" placeholder="your-app-name"
+                   title="An application name can have letters, numbers, hyphens and underscores">
+        </label>
+    </fieldset>
+    <fieldset id="appTypeContainer">
+        <legend>App type</legend>
+
+    </fieldset>
+    <fieldset>
+        <input id="createButton" type="submit" value="Create app" disabled>
+    </fieldset>
+
+</form>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var $ = document.querySelector.bind(document);
+        fetch('https://apprunner.co.nz/api/v1/system')
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (sys) {
+                var appTypeContainer = $('#appTypeContainer');
+                for (var i = 0; i < sys.samples.length; i++) {
+                    var sample = sys.samples[i];
+                    var label = appTypeContainer.appendChild(document.createElement('label'));
+                    var radio = label.appendChild(document.createElement('input'));
+                    label.appendChild(document.createTextNode(' '));
+                    var strong = label.appendChild(document.createElement('strong'));
+                    strong.textContent = sample.id;
+                    label.appendChild(document.createTextNode(' ' + sample.description));
+                    radio.type = 'radio';
+                    radio.name = 'sampleUrl';
+                    radio.required = true;
+                    radio.value = sample.url;
+                }
+                $('#createButton').removeAttribute('disabled');
+            })
+            .catch(function (err) {
+                console.log('Error', err);
+                $('.error').style.display = 'block';
+            })
+    });
+</script>
+
+</body>
+</html>
