@@ -35,6 +35,10 @@ public class App {
         }
         URI appRunnerUri = URI.create("https://apprunner.co.nz");
         String githubUrl = "https://github.com";
+        URI githubApiUrl = URI.create("https://api.github.com");
+
+
+        String serverPublicKey = PublicKeyFinder.getPublicKey();
 
         log.info("Starting " + appName);
         MuServer server = httpServer()
@@ -45,7 +49,7 @@ public class App {
                     .host(githubUrl.split("://")[1])
                     .addEncodedPathSegments("login/oauth/authorize")
                     .addQueryParameter("client_id", githubOAuthClientID)
-                    .addQueryParameter("scope", "write:repo_hook repo")
+                    .addQueryParameter("scope", "write:repo_hook public_repo")
                     .addQueryParameter("redirect_uri", request.uri().resolve("/app-creator/from-github").toString())
                     .addQueryParameter("state", crsfToken)
                     .build().uri());
@@ -67,7 +71,7 @@ public class App {
                                 .build())
                             .url(githubUrl + "/login/oauth/access_token")
                             .addHeader(HeaderNames.ACCEPT.toString(), ContentTypes.APPLICATION_JSON.toString())
-                        .build()
+                            .build()
                     ).execute();
                     response.contentType(ContentTypes.TEXT_PLAIN);
                     String token = new JSONObject(tokenResponse.body().string()).getString("access_token");
@@ -85,10 +89,24 @@ public class App {
                     .url(sampleUrl)
                     .build()).execute()) {
                     AppPreparer appPreparer;
+                    Path dir;
                     try (InputStream inputStream = sampleResp.body().byteStream()) {
                         appPreparer = new AppPreparer(name, sampleType, inputStream, tempDir);
-                        Path dir = appPreparer.prepare();
+                        dir = appPreparer.prepare();
                     }
+                    GithubApi githubApi = new GithubApi(httpClient, githubApiUrl);
+                    githubApi.createRepo(githubToken, name);
+                    githubApi.addDeployKey(githubToken, serverPublicKey);
+
+                    try {
+                        Gitter.init(dir, githubApi.sshUrl())
+                            .addAll()
+                            .commit("Initial commit")
+                            .push();
+                    } finally {
+                        githubApi.deleteAddedKey(githubToken);
+                    }
+
                 }
 
                 return true;
