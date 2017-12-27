@@ -87,8 +87,8 @@ public class App {
                     AppPreparer appPreparer;
                     try (InputStream inputStream = sampleResp.body().byteStream()) {
                         appPreparer = new AppPreparer(name, sampleType, inputStream, tempDir);
+                        Path dir = appPreparer.prepare();
                     }
-                    Path dir = appPreparer.prepare();
                 }
 
                 return true;
