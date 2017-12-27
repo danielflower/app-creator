@@ -53,6 +53,9 @@ public class AppPreparer {
 
     private void customiseMavenProject(Path appDir, String appName) throws IOException {
         String packageName = appName.replace("-", "").replace("_", "").toLowerCase();
+        if (packageName.length() == 0 || packageName.matches("^[0-9].*$")) {
+            packageName = "app" + packageName;
+        }
         FileUtils.moveDirectory(appDir.resolve("./src/main/java/samples").toFile(), appDir.resolve("./src/main/java/" + packageName).toFile());
         try (FileReplace fr = new FileReplace(appDir.resolve("./pom.xml").toFile())) {
             fr.replaceAll("my-maven-app", appName);

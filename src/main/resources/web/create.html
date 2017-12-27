@@ -34,6 +34,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var $ = document.querySelector.bind(document);
+        var createButton = $('#createButton');
+        $('form').addEventListener('submit', function () {
+            createButton.value = 'Please wait a minute...';
+            createButton.disabled = true;
+        });
+
         fetch('https://apprunner.co.nz/api/v1/system')
             .then(function (r) {
                 return r.json();
@@ -53,7 +59,7 @@
                     radio.required = true;
                     radio.value = sample.url;
                 }
-                $('#createButton').removeAttribute('disabled');
+                createButton.disabled = false;
             })
             .catch(function (err) {
                 console.log('Error', err);

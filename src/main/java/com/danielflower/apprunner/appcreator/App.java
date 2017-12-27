@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static ronin.muserver.MuServerBuilder.httpServer;
+import static ronin.muserver.Mutils.urlEncode;
 import static ronin.muserver.handlers.ResourceHandler.fileOrClasspath;
 
 public class App {
@@ -37,8 +38,6 @@ public class App {
         String githubUrl = "https://github.com";
         URI githubApiUrl = URI.create("https://api.github.com");
 
-
-        String serverPublicKey = PublicKeyFinder.getPublicKey();
 
         log.info("Starting " + appName);
         MuServer server = httpServer()
@@ -85,30 +84,41 @@ public class App {
                 String name = request.formValue("appName");
                 String sampleUrl = request.formValue("sampleUrl");
                 String sampleType = sampleUrl.substring(sampleUrl.lastIndexOf('/') + 1).replace(".zip", "");
+                Path dir;
                 try (Response sampleResp = httpClient.newCall(new Request.Builder()
                     .url(sampleUrl)
                     .build()).execute()) {
                     AppPreparer appPreparer;
-                    Path dir;
                     try (InputStream inputStream = sampleResp.body().byteStream()) {
                         appPreparer = new AppPreparer(name, sampleType, inputStream, tempDir);
                         dir = appPreparer.prepare();
                     }
-                    GithubApi githubApi = new GithubApi(httpClient, githubApiUrl);
-                    githubApi.createRepo(githubToken, name);
-                    githubApi.addDeployKey(githubToken, serverPublicKey);
+                }
+                GithubApi githubApi = new GithubApi(httpClient, githubApiUrl);
+                githubApi.createRepo(githubToken, name);
+                githubApi.addFiles(githubToken, dir);
 
-                    try {
-                        Gitter.init(dir, githubApi.sshUrl())
-                            .addAll()
-                            .commit("Initial commit")
-                            .push();
-                    } finally {
-                        githubApi.deleteAddedKey(githubToken);
+                String deployUrl;
+                try (Response appRunnerResp = httpClient.newCall(new Request.Builder()
+                    .url(appRunnerUri.resolve("/api/v1/apps").toString())
+                    .post(new FormBody.Builder()
+                        .add("appName", name)
+                        .add("gitUrl", githubApi.httpsUrl().toString())
+                        .build())
+                    .build()).execute()) {
+                    int code = appRunnerResp.code();
+                    String body = appRunnerResp.body().string();
+                    if (code != 201) {
+                        throw new RuntimeException("Error registering apprunner app: " + code + " " + body);
                     }
-
+                    JSONObject app = new JSONObject(body);
+                    log.info("Created apprunner app: " + app);
+                    deployUrl = app.getString("deployUrl");
                 }
 
+                githubApi.addWebHook(githubToken, deployUrl);
+
+                response.redirect(appRunnerUri.resolve("/home/" + urlEncode(name) + ".html"));
                 return true;
             })
             .addHandler(
