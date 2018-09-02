@@ -1,11 +1,11 @@
 package com.danielflower.apprunner.appcreator;
 
+import io.muserver.*;
+import io.muserver.Cookie;
 import okhttp3.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ronin.muserver.*;
-import ronin.muserver.Cookie;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -14,9 +14,9 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 
-import static ronin.muserver.MuServerBuilder.httpServer;
-import static ronin.muserver.Mutils.urlEncode;
-import static ronin.muserver.handlers.ResourceHandler.fileOrClasspath;
+import static io.muserver.MuServerBuilder.httpServer;
+import static io.muserver.Mutils.urlEncode;
+import static io.muserver.handlers.ResourceHandlerBuilder.fileOrClasspath;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
@@ -41,8 +41,8 @@ public class App {
 
         log.info("Starting " + appName);
         MuServer server = httpServer()
-            .withHttpConnection(Integer.parseInt(settings.getOrDefault("APP_PORT", "8081")))
-            .addHandler(Method.GET, "/app-creator/redirect-to-github", (request, response) -> {
+            .withHttpPort(Integer.parseInt(settings.getOrDefault("APP_PORT", "8081")))
+            .addHandler(Method.GET, "/app-creator/redirect-to-github", (request, response, pp) -> {
                 response.redirect(new HttpUrl.Builder()
                     .scheme(githubUrl.split("://")[0])
                     .host(githubUrl.split("://")[1])
@@ -52,9 +52,8 @@ public class App {
                     .addQueryParameter("redirect_uri", request.uri().resolve("/app-creator/from-github").toString())
                     .addQueryParameter("state", crsfToken)
                     .build().uri());
-                return true;
             })
-            .addHandler(Method.GET, "/app-creator/from-github", (request, response) -> {
+            .addHandler(Method.GET, "/app-creator/from-github", (request, response, pp) -> {
                 String code = request.parameter("code");
                 String state = request.parameter("state");
                 if (code.isEmpty() || state.isEmpty() || !state.equals(crsfToken)) {
@@ -77,12 +76,11 @@ public class App {
                     response.addCookie(new Cookie("GithubToken", token));
                     response.redirect("/app-creator/create.html");
                 }
-                return true;
             })
-            .addHandler(Method.POST, "/app-creator/create", (request, response) -> {
-                String githubToken = request.cookie("GithubToken").get().value();
-                String name = request.formValue("appName");
-                String sampleUrl = request.formValue("sampleUrl");
+            .addHandler(Method.POST, "/app-creator/create", (request, response, pp) -> {
+                String githubToken = request.cookie("GithubToken").get();
+                String name = request.form().get("appName");
+                String sampleUrl = request.form().get("sampleUrl");
                 String sampleType = sampleUrl.substring(sampleUrl.lastIndexOf('/') + 1).replace(".zip", "");
                 Path dir;
                 try (Response sampleResp = httpClient.newCall(new Request.Builder()
@@ -119,7 +117,6 @@ public class App {
                 githubApi.addWebHook(githubToken, deployUrl);
 
                 response.redirect(appRunnerUri.resolve("/home/" + urlEncode(name) + ".html"));
-                return true;
             })
             .addHandler(
                 fileOrClasspath("src/main/resources/web", "/web")
