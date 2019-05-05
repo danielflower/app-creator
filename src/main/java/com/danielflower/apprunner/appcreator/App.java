@@ -116,7 +116,7 @@ public class App {
 
                 githubApi.addWebHook(githubToken, deployUrl);
 
-                response.redirect(getAppRunnerURI(appRunnerUriForTesting, request).resolve("/home/" + urlEncode(name) + ".html"));
+                response.redirect(getAppRunnerURI(appRunnerUriForTesting, request).resolve("/app-runner-home/" + urlEncode(name) + ".html"));
             })
             .addHandler(
                 fileOrClasspath("src/main/resources/web", "/web")
