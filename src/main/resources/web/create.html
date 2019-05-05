@@ -40,7 +40,7 @@
             createButton.disabled = true;
         });
 
-        fetch('https://apprunner.co.nz/api/v1/system')
+        fetch('/api/v1/system')
             .then(function (r) {
                 return r.json();
             })
