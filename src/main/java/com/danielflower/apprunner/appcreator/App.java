@@ -34,7 +34,7 @@ public class App {
         if (githubOAuthClientID == null || githubOAuthClientSecret == null) {
             throw new RuntimeException("The following environment variables (which can be created in GitHub as OAuth apps) must be set: APP_CREATOR_GITHUB_OAUTH_CLIENT_ID and APP_CREATOR_GITHUB_OAUTH_CLIENT_SECRET");
         }
-        URI appRunnerUri = URI.create("https://apprunner.co.nz");
+        URI appRunnerUriForTesting = settings.containsKey("APP_NAME") ? null : URI.create("https://apprunner.co.nz");
         String githubUrl = "https://github.com";
         URI githubApiUrl = URI.create("https://api.github.com");
 
@@ -98,7 +98,7 @@ public class App {
 
                 String deployUrl;
                 try (Response appRunnerResp = httpClient.newCall(new Request.Builder()
-                    .url(appRunnerUri.resolve("/api/v1/apps").toString())
+                    .url(getAppRunnerURI(appRunnerUriForTesting, request).resolve("/api/v1/apps").toString())
                     .post(new FormBody.Builder()
                         .add("appName", name)
                         .add("gitUrl", githubApi.httpsUrl().toString())
@@ -116,7 +116,7 @@ public class App {
 
                 githubApi.addWebHook(githubToken, deployUrl);
 
-                response.redirect(appRunnerUri.resolve("/home/" + urlEncode(name) + ".html"));
+                response.redirect(getAppRunnerURI(appRunnerUriForTesting, request).resolve("/home/" + urlEncode(name) + ".html"));
             })
             .addHandler(
                 fileOrClasspath("src/main/resources/web", "/web")
@@ -126,6 +126,13 @@ public class App {
         log.info("Started app at " + server.httpUri().resolve("/" + appName + "/"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+    }
+
+    private static URI getAppRunnerURI(URI uriForTestingLocally, MuRequest request) {
+        if (uriForTestingLocally != null) {
+            return uriForTestingLocally;
+        }
+        return request.uri();
     }
 
 
